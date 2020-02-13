@@ -49,7 +49,7 @@ Java_com_example_helloffmpeg_MainActivity_decodeVideo(JNIEnv *env, jobject thiz,
 
     avPacket = av_packet_alloc();
     if (!avPacket)
-        exit(1);
+        goto end;
 
     //原型：memset(void *buffer, int c, int count)
     //将inbuf[INBUF_SIZE]及其后面的元素都设为了0
@@ -60,19 +60,19 @@ Java_com_example_helloffmpeg_MainActivity_decodeVideo(JNIEnv *env, jobject thiz,
     avCodec = avcodec_find_decoder(AV_CODEC_ID_H264);
     if (!avCodec) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Codec not found\n");
-        exit(1);
+        goto end;
     }
 
     avCodecParserContext = av_parser_init(avCodec->id);
     if (!avCodecParserContext) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "avCodecParserContext not found\n");
-        exit(1);
+        goto end;
     }
 
     avCodecContext = avcodec_alloc_context3(avCodec);
     if (!avCodecContext) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Could not allocate avCodecContext\n");
-        exit(1);
+        goto end;
     }
 
     /* For some codecs, such as msmpeg4 and mpeg4, width and height
@@ -82,7 +82,7 @@ Java_com_example_helloffmpeg_MainActivity_decodeVideo(JNIEnv *env, jobject thiz,
     /* open it */
     if (avcodec_open2(avCodecContext, avCodec, nullptr) < 0) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Could not open avCodec\n");
-        exit(1);
+        goto end;
     }
 
     //打开输入文件
@@ -90,13 +90,13 @@ Java_com_example_helloffmpeg_MainActivity_decodeVideo(JNIEnv *env, jobject thiz,
     if (!file) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Could not open in file\n");
         __android_log_write(ANDROID_LOG_ERROR, TAG, strerror(errno));
-        exit(1);
+        goto end;
     }
 
     avFrame = av_frame_alloc();
     if (!avFrame) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Could not allocate video avFrame\n");
-        exit(1);
+        goto end;
     }
 
     while (!feof(file)) {
@@ -114,7 +114,7 @@ Java_com_example_helloffmpeg_MainActivity_decodeVideo(JNIEnv *env, jobject thiz,
                                    data, data_size, AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
             if (ret < 0) {
                 __android_log_write(ANDROID_LOG_ERROR, TAG, "Error while parsing\n");
-                exit(1);
+                goto end;
             }
             //后移数组指针并更新data_size
             data += ret;
@@ -129,13 +129,14 @@ Java_com_example_helloffmpeg_MainActivity_decodeVideo(JNIEnv *env, jobject thiz,
     /* flush the decoder */
     decode(avCodecContext, avFrame, nullptr, outfilename);
 
+    end:
     env->ReleaseStringUTFChars(file_path, filename);
     env->ReleaseStringUTFChars(dst_file_path, outfilename);
-    fclose(file);
-    av_parser_close(avCodecParserContext);
-    avcodec_free_context(&avCodecContext);
-    av_frame_free(&avFrame);
-    av_packet_free(&avPacket);
+    if (file) fclose(file);
+    if (avCodecParserContext) av_parser_close(avCodecParserContext);
+    if (avCodecContext) avcodec_free_context(&avCodecContext);
+    if (avFrame) av_frame_free(&avFrame);
+    if (avPacket) av_packet_free(&avPacket);
 
     return 0;
 }
@@ -151,7 +152,7 @@ static void decode(AVCodecContext *avCodecContext, AVFrame *avFrame, AVPacket *p
     if (ret < 0) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Error sending a packet for decoding: %s\n",
                             av_err2str(ret));
-        exit(1);
+        return;
     }
 
     while (ret >= 0) {
@@ -161,7 +162,7 @@ static void decode(AVCodecContext *avCodecContext, AVFrame *avFrame, AVPacket *p
             return;
         } else if (ret < 0) {
             __android_log_write(ANDROID_LOG_ERROR, TAG, "Error during decoding\n");
-            exit(1);
+            return;
         }
 
         //为防止文件太多观察不便，每20个avFrame中抽取一个并保存为文件
@@ -188,7 +189,7 @@ static void yuv_save(AVFrame *avFrame, char *filename) {
     if (!file) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Could not open out file\n");
         __android_log_write(ANDROID_LOG_ERROR, TAG, strerror(errno));
-        exit(1);
+        return;
     }
 
     //这段代码的原理参考《YUV与FFmpeg.md》
@@ -231,19 +232,19 @@ Java_com_example_helloffmpeg_MainActivity_encodeVideo(JNIEnv *env, jobject thiz,
     codec = avcodec_find_encoder(AV_CODEC_ID_H264);
     if (!codec) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Codec not found\n");
-        exit(1);
+        goto end;
     }
 
     avCodecContext = avcodec_alloc_context3(codec);
     if (!avCodecContext) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Could not allocate video codec context\n");
-        exit(1);
+        goto end;
     }
 
     pkt = av_packet_alloc();
     if (!pkt) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "av_packet_alloc() failed\n");
-        exit(1);
+        goto end;
     }
 
     /* put sample parameters */
@@ -259,7 +260,7 @@ Java_com_example_helloffmpeg_MainActivity_encodeVideo(JNIEnv *env, jobject thiz,
 
     //每10帧产生一个I帧。
     //在将帧发送给编码器之前检查帧的pict_type，如果是AV_PICTURE_TYPE_I，
-    //那么gop_size相会被忽略，输出的帧必然是I帧
+    //那么gop_size会被忽略，输出的帧必然是I帧
     /* emit one intra frame every ten frames
      * check frame pict_type before passing frame
      * to encoder, if frame->pict_type is AV_PICTURE_TYPE_I
@@ -278,19 +279,19 @@ Java_com_example_helloffmpeg_MainActivity_encodeVideo(JNIEnv *env, jobject thiz,
     ret = avcodec_open2(avCodecContext, codec, nullptr);
     if (ret < 0) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Could not open codec: %s\n", av_err2str(ret));
-        exit(1);
+        goto end;
     }
 
     file = fopen(outfilename, "wbe");
     if (!file) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Could not open %s\n", outfilename);
-        exit(1);
+        goto end;
     }
 
     frame = av_frame_alloc();
     if (!frame) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Could not allocate video frame\n");
-        exit(1);
+        goto end;
     }
     frame->format = avCodecContext->pix_fmt;
     frame->width = avCodecContext->width;
@@ -299,7 +300,7 @@ Java_com_example_helloffmpeg_MainActivity_encodeVideo(JNIEnv *env, jobject thiz,
     ret = av_frame_get_buffer(frame, 32);
     if (ret < 0) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Could not allocate the video frame data\n");
-        exit(1);
+        goto end;
     }
 
     /* encode 1 second of video */
@@ -310,7 +311,7 @@ Java_com_example_helloffmpeg_MainActivity_encodeVideo(JNIEnv *env, jobject thiz,
 
         /* make sure the frame data is writable */
         ret = av_frame_make_writable(frame);
-        if (ret < 0) exit(1);
+        if (ret < 0) goto end;
 
         //造数据
         /* prepare a dummy image */
@@ -344,11 +345,12 @@ Java_com_example_helloffmpeg_MainActivity_encodeVideo(JNIEnv *env, jobject thiz,
     if (codec->id == AV_CODEC_ID_MPEG1VIDEO || codec->id == AV_CODEC_ID_MPEG2VIDEO)
         fwrite(endcode, 1, sizeof(endcode), file);
 
+    end:
     env->ReleaseStringUTFChars(dst_file_path, outfilename);
-    fclose(file);
-    avcodec_free_context(&avCodecContext);
-    av_frame_free(&frame);
-    av_packet_free(&pkt);
+    if (file) fclose(file);
+    if (avCodecContext) avcodec_free_context(&avCodecContext);
+    if (frame) av_frame_free(&frame);
+    if (pkt) av_packet_free(&pkt);
 
     return 0;
 }
@@ -362,7 +364,7 @@ static void encode(AVCodecContext *avCodecContext, AVFrame *frame, AVPacket *pkt
     ret = avcodec_send_frame(avCodecContext, frame);
     if (ret < 0) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Error sending a frame for encoding\n");
-        exit(1);
+        return;
     }
 
     while (ret >= 0) {
@@ -371,7 +373,7 @@ static void encode(AVCodecContext *avCodecContext, AVFrame *frame, AVPacket *pkt
             return;
         else if (ret < 0) {
             __android_log_write(ANDROID_LOG_ERROR, TAG, "Error during encoding\n");
-            exit(1);
+            return;
         }
 
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Write packet %lli (size=%5d)\n",

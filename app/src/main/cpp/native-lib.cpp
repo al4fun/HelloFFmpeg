@@ -47,13 +47,13 @@ Java_com_example_helloffmpeg_MainActivity_printFileInfo(JNIEnv *env, jobject thi
     //创建AVFormatContext
     if ((ret = avformat_open_input(&fmt_ctx, path, nullptr, nullptr)) < 0) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, av_err2str(ret));
-        return;
+        goto end;
     }
 
     //找到流信息
     if ((ret = avformat_find_stream_info(fmt_ctx, nullptr)) < 0) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, av_err2str(ret));
-        return;
+        goto end;
     }
 
     //解析metadata
@@ -64,8 +64,9 @@ Java_com_example_helloffmpeg_MainActivity_printFileInfo(JNIEnv *env, jobject thi
     }
 
     //释放资源
+    end:
     env->ReleaseStringUTFChars(file_path, path);
-    avformat_close_input(&fmt_ctx);
+    if (fmt_ctx) avformat_close_input(&fmt_ctx);
 }
 
 //从mp4文件中提取音频流并保存为aac文件--------------------------------------------------------------------
@@ -73,7 +74,7 @@ extern "C"
 JNIEXPORT void JNICALL
 Java_com_example_helloffmpeg_MainActivity_extractAudio(JNIEnv *env, jobject thiz,
                                                        jstring src_path, jstring dst_path) {
-    int code;
+    int ret;
 
     const char *srcPath = env->GetStringUTFChars(src_path, nullptr);
     const char *dstPath = env->GetStringUTFChars(dst_path, nullptr);
@@ -82,11 +83,11 @@ Java_com_example_helloffmpeg_MainActivity_extractAudio(JNIEnv *env, jobject thiz
 
     //in_fmt_ctx
     AVFormatContext *in_fmt_ctx = nullptr;
-    code = avformat_open_input(&in_fmt_ctx, srcPath, nullptr, nullptr);
-    if (code < 0) {
+    ret = avformat_open_input(&in_fmt_ctx, srcPath, nullptr, nullptr);
+    if (ret < 0) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "avformat_open_input失败：%s",
-                            av_err2str(code));
-        return;
+                            av_err2str(ret));
+        goto end;
     }
 
     //audio_index
@@ -94,7 +95,7 @@ Java_com_example_helloffmpeg_MainActivity_extractAudio(JNIEnv *env, jobject thiz
     if (audio_index < 0) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "查找音频流失败：%s",
                             av_err2str(audio_index));
-        return;
+        goto end;
     }
 
     //in_stream、in_codecpar
@@ -102,7 +103,7 @@ Java_com_example_helloffmpeg_MainActivity_extractAudio(JNIEnv *env, jobject thiz
     AVCodecParameters *in_codecpar = in_stream->codecpar;
     if (in_codecpar->codec_type != AVMEDIA_TYPE_AUDIO) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "The Codec type is invalid!");
-        return;
+        goto end;
     }
 
     //out_fmt_ctx
@@ -111,31 +112,31 @@ Java_com_example_helloffmpeg_MainActivity_extractAudio(JNIEnv *env, jobject thiz
     out_fmt_ctx->oformat = out_fmt;
     if (!out_fmt) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Cloud not guess file format");
-        return;
+        goto end;
     }
 
     //out_stream
     AVStream *out_stream = avformat_new_stream(out_fmt_ctx, NULL);
     if (!out_stream) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Failed to create out stream");
-        return;
+        goto end;
     }
 
     //拷贝编解码器参数
-    code = avcodec_parameters_copy(out_stream->codecpar, in_codecpar);
-    if (code < 0) {
+    ret = avcodec_parameters_copy(out_stream->codecpar, in_codecpar);
+    if (ret < 0) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "avcodec_parameters_copy：%s",
-                            av_err2str(code));
-        return;
+                            av_err2str(ret));
+        goto end;
     }
     out_stream->codecpar->codec_tag = 0;
 
 
     //创建并初始化目标文件的AVIOContext
-    if ((code = avio_open(&out_fmt_ctx->pb, dstPath, AVIO_FLAG_WRITE)) < 0) {
+    if ((ret = avio_open(&out_fmt_ctx->pb, dstPath, AVIO_FLAG_WRITE)) < 0) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "avio_open：%s",
-                            av_err2str(code));
-        return;
+                            av_err2str(ret));
+        goto end;
     }
 
     //initialize packet
@@ -145,15 +146,15 @@ Java_com_example_helloffmpeg_MainActivity_extractAudio(JNIEnv *env, jobject thiz
     pkt.size = 0;
 
     //写文件头
-    if ((code = avformat_write_header(out_fmt_ctx, nullptr)) < 0) {
+    if ((ret = avformat_write_header(out_fmt_ctx, nullptr)) < 0) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "avformat_write_header：%s",
-                            av_err2str(code));
-        return;
+                            av_err2str(ret));
+        goto end;
     }
 
     while (av_read_frame(in_fmt_ctx, &pkt) == 0) {
         if (pkt.stream_index == audio_index) {
-            //输入流和输出流的时间基可能不同，因为要根据时间基的不同对时间戳pts进行转换
+            //输入流和输出流的时间基可能不同，因此要根据时间基的不同对时间戳pts进行转换
             pkt.pts = av_rescale_q(pkt.pts, in_stream->time_base, out_stream->time_base);
             pkt.dts = pkt.pts;
             //根据时间基转换duration
@@ -173,19 +174,22 @@ Java_com_example_helloffmpeg_MainActivity_extractAudio(JNIEnv *env, jobject thiz
     av_write_trailer(out_fmt_ctx);
 
     //释放资源
+    end:
     env->ReleaseStringUTFChars(src_path, srcPath);
     env->ReleaseStringUTFChars(dst_path, dstPath);
-    avformat_close_input(&in_fmt_ctx);
-    avformat_free_context(out_fmt_ctx);
-    avio_close(out_fmt_ctx->pb);
+    if (in_fmt_ctx) avformat_close_input(&in_fmt_ctx);
+    if (out_fmt_ctx) {
+        if (out_fmt_ctx->pb) avio_close(out_fmt_ctx->pb);
+        avformat_free_context(out_fmt_ctx);
+    }
 }
 
-//从mp4文件中提取视频流并保存为h264文件-------------------------------------------------------------------
+//从mp4文件中提取视频流并保存为h264文件----------------------------------------------------------------
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_example_helloffmpeg_MainActivity_extractVideo(JNIEnv *env, jobject thiz,
                                                        jstring src_path, jstring dst_path) {
-    int code;
+    int ret;
 
     const char *srcPath = env->GetStringUTFChars(src_path, nullptr);
     const char *dstPath = env->GetStringUTFChars(dst_path, nullptr);
@@ -194,11 +198,11 @@ Java_com_example_helloffmpeg_MainActivity_extractVideo(JNIEnv *env, jobject thiz
 
     //in_fmt_ctx
     AVFormatContext *in_fmt_ctx = nullptr;
-    code = avformat_open_input(&in_fmt_ctx, srcPath, nullptr, nullptr);
-    if (code < 0) {
+    ret = avformat_open_input(&in_fmt_ctx, srcPath, nullptr, nullptr);
+    if (ret < 0) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "avformat_open_input失败：%s",
-                            av_err2str(code));
-        return;
+                            av_err2str(ret));
+        goto end;
     }
 
     //video_index
@@ -206,7 +210,7 @@ Java_com_example_helloffmpeg_MainActivity_extractVideo(JNIEnv *env, jobject thiz
     if (video_index < 0) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "查找视频流失败：%s",
                             av_err2str(video_index));
-        return;
+        goto end;
     }
 
     //in_stream、in_codecpar
@@ -214,7 +218,7 @@ Java_com_example_helloffmpeg_MainActivity_extractVideo(JNIEnv *env, jobject thiz
     AVCodecParameters *in_codecpar = in_stream->codecpar;
     if (in_codecpar->codec_type != AVMEDIA_TYPE_VIDEO) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "The Codec type is invalid!");
-        return;
+        goto end;
     }
 
     //out_fmt_ctx
@@ -223,31 +227,31 @@ Java_com_example_helloffmpeg_MainActivity_extractVideo(JNIEnv *env, jobject thiz
     out_fmt_ctx->oformat = out_fmt;
     if (!out_fmt) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Cloud not guess file format");
-        return;
+        goto end;
     }
 
     //out_stream
     AVStream *out_stream = avformat_new_stream(out_fmt_ctx, NULL);
     if (!out_stream) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Failed to create out stream");
-        return;
+        goto end;
     }
 
     //拷贝编解码器参数
-    code = avcodec_parameters_copy(out_stream->codecpar, in_codecpar);
-    if (code < 0) {
+    ret = avcodec_parameters_copy(out_stream->codecpar, in_codecpar);
+    if (ret < 0) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "avcodec_parameters_copy：%s",
-                            av_err2str(code));
-        return;
+                            av_err2str(ret));
+        goto end;
     }
     out_stream->codecpar->codec_tag = 0;
 
 
     //创建并初始化目标文件的AVIOContext
-    if ((code = avio_open(&out_fmt_ctx->pb, dstPath, AVIO_FLAG_WRITE)) < 0) {
+    if ((ret = avio_open(&out_fmt_ctx->pb, dstPath, AVIO_FLAG_WRITE)) < 0) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "avio_open：%s",
-                            av_err2str(code));
-        return;
+                            av_err2str(ret));
+        goto end;
     }
 
     //initialize packet
@@ -257,15 +261,15 @@ Java_com_example_helloffmpeg_MainActivity_extractVideo(JNIEnv *env, jobject thiz
     pkt.size = 0;
 
     //写文件头
-    if ((code = avformat_write_header(out_fmt_ctx, nullptr)) < 0) {
+    if ((ret = avformat_write_header(out_fmt_ctx, nullptr)) < 0) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "avformat_write_header：%s",
-                            av_err2str(code));
-        return;
+                            av_err2str(ret));
+        goto end;
     }
 
     while (av_read_frame(in_fmt_ctx, &pkt) == 0) {
         if (pkt.stream_index == video_index) {
-            //输入流和输出流的时间基可能不同，因为要根据时间基的不同对时间戳pts进行转换
+            //输入流和输出流的时间基可能不同，因此要根据时间基的不同对时间戳pts进行转换
             pkt.pts = av_rescale_q(pkt.pts, in_stream->time_base, out_stream->time_base);
             pkt.dts = pkt.pts;
             //根据时间基转换duration
@@ -285,11 +289,14 @@ Java_com_example_helloffmpeg_MainActivity_extractVideo(JNIEnv *env, jobject thiz
     av_write_trailer(out_fmt_ctx);
 
     //释放资源
+    end:
     env->ReleaseStringUTFChars(src_path, srcPath);
     env->ReleaseStringUTFChars(dst_path, dstPath);
-    avformat_close_input(&in_fmt_ctx);
-    avformat_free_context(out_fmt_ctx);
-    avio_close(out_fmt_ctx->pb);
+    if (in_fmt_ctx) avformat_close_input(&in_fmt_ctx);
+    if (out_fmt_ctx) {
+        if (out_fmt_ctx->pb) avio_close(out_fmt_ctx->pb);
+        avformat_free_context(out_fmt_ctx);
+    }
 }
 
 //改变封装格式(mp4 -> flv)----------------------------------------------------------------------------------
@@ -413,7 +420,7 @@ Java_com_example_helloffmpeg_MainActivity_remux(JNIEnv *env, jobject thiz, jstri
         out_stream = ofmt_ctx->streams[pkt.stream_index];
         log_packet(ifmt_ctx, &pkt, "in");
 
-        //输入流和输出流的时间基可能不同，因为要根据时间基的不同对时间戳pts进行转换
+        //输入流和输出流的时间基可能不同，因此要根据时间基的不同对时间戳pts进行转换
         pkt.pts = av_rescale_q(pkt.pts, in_stream->time_base, out_stream->time_base);
         pkt.dts = av_rescale_q(pkt.dts, in_stream->time_base, out_stream->time_base);
         //根据时间基转换duration
@@ -437,10 +444,10 @@ Java_com_example_helloffmpeg_MainActivity_remux(JNIEnv *env, jobject thiz, jstri
     end:
     env->ReleaseStringUTFChars(file_path, in_filename);
     env->ReleaseStringUTFChars(dst_file_path, out_filename);
-    avformat_close_input(&ifmt_ctx);
+    if (ifmt_ctx) avformat_close_input(&ifmt_ctx);
     if (ofmt_ctx && !(ofmt->flags & AVFMT_NOFILE)) avio_closep(&ofmt_ctx->pb);
-    avformat_free_context(ofmt_ctx);
-    av_freep(&stream_mapping);
+    if (ofmt_ctx) avformat_free_context(ofmt_ctx);
+    if (stream_mapping) av_freep(&stream_mapping);
     if (ret < 0 && ret != AVERROR_EOF) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Error occurred: %s\n", av_err2str(ret));
         return 1;

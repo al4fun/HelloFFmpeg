@@ -41,7 +41,7 @@ Java_com_example_helloffmpeg_MainActivity_scaleVideo(JNIEnv *env, jobject thiz,
         __android_log_print(ANDROID_LOG_ERROR, TAG,
                             "Invalid size '%s', must be in the form WxH or a valid size abbreviation\n",
                             dst_size);
-        exit(1);
+        goto end;
     }
 
     dstFilename = env->GetStringUTFChars(dst_file_path, nullptr);
@@ -50,7 +50,7 @@ Java_com_example_helloffmpeg_MainActivity_scaleVideo(JNIEnv *env, jobject thiz,
     if (!dst_file) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Could not open destination file %s\n",
                             dstFilename);
-        exit(1);
+        goto end;
     }
 
     //创建SwsContext
@@ -104,10 +104,10 @@ Java_com_example_helloffmpeg_MainActivity_scaleVideo(JNIEnv *env, jobject thiz,
 
     end:
     env->ReleaseStringUTFChars(dst_file_path, dstFilename);
-    fclose(dst_file);
-    av_freep(&src_data[0]);
-    av_freep(&dst_data[0]);
-    sws_freeContext(sws_ctx);
+    if (dst_file) fclose(dst_file);
+    if (src_data) av_freep(&src_data[0]);
+    if (dst_data) av_freep(&dst_data[0]);
+    if (sws_ctx) sws_freeContext(sws_ctx);
     return ret < 0;
 }
 

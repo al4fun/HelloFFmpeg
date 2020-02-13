@@ -58,37 +58,37 @@ Java_com_example_helloffmpeg_MainActivity_decodeAudio(JNIEnv *env, jobject thiz,
     avCodec = avcodec_find_decoder(AV_CODEC_ID_AAC);
     if (!avCodec) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Codec not found\n");
-        exit(1);
+        goto end;
     }
 
     avCodecParserContext = av_parser_init(avCodec->id);
     if (!avCodecParserContext) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "avCodecParserContext not found\n");
-        exit(1);
+        goto end;
     }
 
     avCodecContext = avcodec_alloc_context3(avCodec);
     if (!avCodecContext) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Could not allocate avCodecContext\n");
-        exit(1);
+        goto end;
     }
 
     if (avcodec_open2(avCodecContext, avCodec, nullptr) < 0) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Could not open avCodec\n");
-        exit(1);
+        goto end;
     }
 
     infile = fopen(filename, "rbe");
     if (!infile) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Could not open in file\n");
         __android_log_write(ANDROID_LOG_ERROR, TAG, strerror(errno));
-        exit(1);
+        goto end;
     }
     outfile = fopen(outfilename, "wbe");
     if (!outfile) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Could not open out file\n");
         __android_log_write(ANDROID_LOG_ERROR, TAG, strerror(errno));
-        exit(1);
+        goto end;
     }
 
     /* decode until eof */
@@ -100,7 +100,7 @@ Java_com_example_helloffmpeg_MainActivity_decodeAudio(JNIEnv *env, jobject thiz,
         if (!avFrame) {
             if (!(avFrame = av_frame_alloc())) {
                 __android_log_write(ANDROID_LOG_ERROR, TAG, "Could not allocate video avFrame\n");
-                exit(1);
+                goto end;
             }
         }
 
@@ -110,7 +110,7 @@ Java_com_example_helloffmpeg_MainActivity_decodeAudio(JNIEnv *env, jobject thiz,
                                AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
         if (ret < 0) {
             __android_log_write(ANDROID_LOG_ERROR, TAG, "Error while parsing\n");
-            exit(1);
+            goto end;
         }
         //后移数组指针并更新data_size
         data += ret;
@@ -159,12 +159,12 @@ Java_com_example_helloffmpeg_MainActivity_decodeAudio(JNIEnv *env, jobject thiz,
     end:
     env->ReleaseStringUTFChars(file_path, filename);
     env->ReleaseStringUTFChars(dst_file_path, outfilename);
-    fclose(outfile);
-    fclose(infile);
-    avcodec_free_context(&avCodecContext);
-    av_parser_close(avCodecParserContext);
-    av_frame_free(&avFrame);
-    av_packet_free(&pkt);
+    if (outfile) fclose(outfile);
+    if (infile) fclose(infile);
+    if (avCodecContext) avcodec_free_context(&avCodecContext);
+    if (avCodecParserContext) av_parser_close(avCodecParserContext);
+    if (avFrame) av_frame_free(&avFrame);
+    if (pkt) av_packet_free(&pkt);
 
     return 0;
 }
@@ -182,7 +182,7 @@ static void decode(AVCodecContext *avCodecContext, AVPacket *pkt, AVFrame *avFra
     if (ret < 0) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Error sending a packet for decoding: %s\n",
                             av_err2str(ret));
-        exit(1);
+        return;
     }
 
     /* read all the output frames (in general there may be any number of them */
@@ -193,7 +193,7 @@ static void decode(AVCodecContext *avCodecContext, AVPacket *pkt, AVFrame *avFra
             return;
         else if (ret < 0) {
             __android_log_write(ANDROID_LOG_ERROR, TAG, "Error during decoding\n");
-            exit(1);
+            return;
         }
 
         //获取该采样格式每个采样是多少字节
@@ -202,7 +202,7 @@ static void decode(AVCodecContext *avCodecContext, AVPacket *pkt, AVFrame *avFra
         if (data_size < 0) {
             /* This should not occur, checking just for paranoia */
             __android_log_write(ANDROID_LOG_ERROR, TAG, "Failed to calculate data size\n");
-            exit(1);
+            return;
         }
 
         //遍历avFrame中的每一个采样数据
@@ -277,13 +277,13 @@ Java_com_example_helloffmpeg_MainActivity_encodeAudio(JNIEnv *env, jobject thiz,
     codec = avcodec_find_encoder(AV_CODEC_ID_MP2);
     if (!codec) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Codec not found\n");
-        exit(1);
+        goto end;
     }
 
     avCodecContext = avcodec_alloc_context3(codec);
     if (!avCodecContext) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Could not allocate audio codec context\n");
-        exit(1);
+        goto end;
     }
 
     //编码的比特率
@@ -297,7 +297,7 @@ Java_com_example_helloffmpeg_MainActivity_encodeAudio(JNIEnv *env, jobject thiz,
     if (!check_sample_fmt(codec, avCodecContext->sample_fmt)) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Encoder does not support sample format %s",
                             av_get_sample_fmt_name(avCodecContext->sample_fmt));
-        exit(1);
+        goto end;
     }
 
     /* select other audio parameters supported by the encoder */
@@ -311,27 +311,27 @@ Java_com_example_helloffmpeg_MainActivity_encodeAudio(JNIEnv *env, jobject thiz,
     /* open it */
     if (avcodec_open2(avCodecContext, codec, nullptr) < 0) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Could not open codec\n");
-        exit(1);
+        goto end;
     }
 
     file = fopen(outfilename, "wbe");
     if (!file) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Could not open %s\n", outfilename);
-        exit(1);
+        goto end;
     }
 
     /* packet for holding encoded output */
     pkt = av_packet_alloc();
     if (!pkt) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "could not allocate the packet\n");
-        exit(1);
+        goto end;
     }
 
     /* frame containing input raw audio */
     frame = av_frame_alloc();
     if (!frame) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Could not allocate audio frame\n");
-        exit(1);
+        goto end;
     }
     frame->nb_samples = avCodecContext->frame_size;
     frame->format = avCodecContext->sample_fmt;
@@ -340,7 +340,7 @@ Java_com_example_helloffmpeg_MainActivity_encodeAudio(JNIEnv *env, jobject thiz,
     ret = av_frame_get_buffer(frame, 0);
     if (ret < 0) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Could not allocate audio data buffers\n");
-        exit(1);
+        goto end;
     }
 
     //手动生成一些假的采样数据
@@ -353,7 +353,7 @@ Java_com_example_helloffmpeg_MainActivity_encodeAudio(JNIEnv *env, jobject thiz,
         /* make sure the frame is writable -- makes a copy if the encoder
          * kept a reference internally */
         ret = av_frame_make_writable(frame);
-        if (ret < 0) exit(1);
+        if (ret < 0) goto end;
         samples = (uint16_t *) frame->data[0];
 
         //一次循环为一个采样
@@ -379,11 +379,12 @@ Java_com_example_helloffmpeg_MainActivity_encodeAudio(JNIEnv *env, jobject thiz,
     /* flush the encoder */
     encode(avCodecContext, nullptr, pkt, file);
 
+    end:
     env->ReleaseStringUTFChars(dst_file_path, outfilename);
-    fclose(file);
-    av_frame_free(&frame);
-    av_packet_free(&pkt);
-    avcodec_free_context(&avCodecContext);
+    if (file) fclose(file);
+    if (frame) av_frame_free(&frame);
+    if (pkt) av_packet_free(&pkt);
+    if (avCodecContext) avcodec_free_context(&avCodecContext);
 
     return 0;
 }
@@ -453,7 +454,7 @@ static void encode(AVCodecContext *ctx, AVFrame *frame, AVPacket *pkt,
     ret = avcodec_send_frame(ctx, frame);
     if (ret < 0) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Error sending the frame to the encoder\n");
-        exit(1);
+        return;
     }
 
     /* read all the available output packets (in general there may be any
@@ -464,7 +465,7 @@ static void encode(AVCodecContext *ctx, AVFrame *frame, AVPacket *pkt,
             return;
         else if (ret < 0) {
             __android_log_write(ANDROID_LOG_ERROR, TAG, "Error encoding audio frame\n");
-            exit(1);
+            return;
         }
 
         fwrite(pkt->data, 1, pkt->size, output);

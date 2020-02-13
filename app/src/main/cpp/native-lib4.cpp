@@ -56,7 +56,7 @@ Java_com_example_helloffmpeg_MainActivity_resampleAudio(JNIEnv *env, jobject thi
     if (!dst_file) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Could not open destination file %s\n",
                             dstFilename);
-        exit(1);
+        goto end;
     }
 
     /* create resampler context */
@@ -147,6 +147,7 @@ Java_com_example_helloffmpeg_MainActivity_resampleAudio(JNIEnv *env, jobject thi
 
     if ((ret = get_format_from_sample_fmt(&fmt, dst_sample_fmt)) < 0)
         goto end;
+
     __android_log_print(ANDROID_LOG_ERROR, TAG,
                         "Resampling succeeded. Play the output file with the command:\n"
                         "ffplay -f %s -channel_layout %lli -channels %d -ar %d %s\n",
@@ -154,12 +155,17 @@ Java_com_example_helloffmpeg_MainActivity_resampleAudio(JNIEnv *env, jobject thi
 
     end:
     env->ReleaseStringUTFChars(dst_file_path, dstFilename);
-    fclose(dst_file);
-    if (src_data) av_freep(&src_data[0]);
-    av_freep(&src_data);
-    if (dst_data) av_freep(&dst_data[0]);
-    av_freep(&dst_data);
-    swr_free(&swr_ctx);
+    if (dst_file) fclose(dst_file);
+    if (src_data) {
+        av_freep(&src_data[0]);
+        av_freep(&src_data);
+    }
+    if (dst_data) {
+        av_freep(&dst_data[0]);
+        av_freep(&dst_data);
+    }
+    if (swr_ctx) swr_free(&swr_ctx);
+
     return ret < 0;
 }
 
