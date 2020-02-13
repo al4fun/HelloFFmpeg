@@ -1,5 +1,3 @@
-# FFmpeg Practice in Android
-
 本项目展示如何在Android App中通过JNI调用FFmpeg动态库，以及使用FFmpeg进行基本音视频处理和编解码的方法。主要包含：
 
 - 音视频提取
