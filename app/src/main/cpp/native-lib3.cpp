@@ -39,19 +39,19 @@ Java_com_example_helloffmpeg_MainActivity_decodeAudio(JNIEnv *env, jobject thiz,
     __android_log_write(ANDROID_LOG_ERROR, TAG, filename);
     __android_log_write(ANDROID_LOG_ERROR, TAG, outfilename);
 
-    const AVCodec *avCodec;
+    const AVCodec *avCodec = nullptr;
     AVCodecContext *avCodecContext = nullptr;
     AVCodecParserContext *avCodecParserContext = nullptr;
     int len, ret;
-    FILE *infile, *outfile;
+    FILE *infile = nullptr, *outfile = nullptr;
     uint8_t inbuf[AUDIO_INBUF_SIZE + AV_INPUT_BUFFER_PADDING_SIZE];
-    uint8_t *data;
+    uint8_t *data = nullptr;
     size_t data_size;
-    AVPacket *pkt;
+    AVPacket *pkt = nullptr;
     AVFrame *avFrame = nullptr;
     enum AVSampleFormat avSampleFormat;
     int n_channels = 0;
-    const char *fmt;
+    const char *fmt = nullptr;
 
     pkt = av_packet_alloc();
 
@@ -264,13 +264,13 @@ Java_com_example_helloffmpeg_MainActivity_encodeAudio(JNIEnv *env, jobject thiz,
     const char *outfilename = env->GetStringUTFChars(dst_file_path, nullptr);
     __android_log_write(ANDROID_LOG_ERROR, TAG, outfilename);
 
-    const AVCodec *codec;
+    const AVCodec *codec = nullptr;
     AVCodecContext *avCodecContext = nullptr;
-    AVFrame *frame;
-    AVPacket *pkt;
+    AVFrame *frame = nullptr;
+    AVPacket *pkt = nullptr;
     int i, j, k, ret;
-    FILE *file;
-    uint16_t *samples;
+    FILE *file = nullptr;
+    uint16_t *samples = nullptr;
     float t, tincr;
 
     /* find the MP2 encoder */

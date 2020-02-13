@@ -77,11 +77,11 @@ Java_com_example_helloffmpeg_MainActivity_extractAudio(JNIEnv *env, jobject thiz
     int ret;
     AVFormatContext *in_fmt_ctx = nullptr;
     int audio_index;
-    AVStream *in_stream;
-    AVCodecParameters *in_codecpar;
-    AVFormatContext *out_fmt_ctx;
-    AVOutputFormat *out_fmt;
-    AVStream *out_stream;
+    AVStream *in_stream = nullptr;
+    AVCodecParameters *in_codecpar = nullptr;
+    AVFormatContext *out_fmt_ctx = nullptr;
+    AVOutputFormat *out_fmt = nullptr;
+    AVStream *out_stream = nullptr;
     AVPacket pkt;
 
     const char *srcPath = env->GetStringUTFChars(src_path, nullptr);
@@ -198,11 +198,11 @@ Java_com_example_helloffmpeg_MainActivity_extractVideo(JNIEnv *env, jobject thiz
     int ret;
     AVFormatContext *in_fmt_ctx = nullptr;
     int video_index;
-    AVStream *in_stream;
-    AVCodecParameters *in_codecpar;
-    AVFormatContext *out_fmt_ctx;
-    AVOutputFormat *out_fmt;
-    AVStream *out_stream;
+    AVStream *in_stream = nullptr;
+    AVCodecParameters *in_codecpar = nullptr;
+    AVFormatContext *out_fmt_ctx = nullptr;
+    AVOutputFormat *out_fmt = nullptr;
+    AVStream *out_stream = nullptr;
     AVPacket pkt;
 
     const char *srcPath = env->GetStringUTFChars(src_path, nullptr);

@@ -31,9 +31,9 @@ Java_com_example_helloffmpeg_MainActivity_scaleVideo(JNIEnv *env, jobject thiz,
     enum AVPixelFormat src_pix_fmt = AV_PIX_FMT_YUV420P, dst_pix_fmt = AV_PIX_FMT_RGB24;
     const char *dst_size = nullptr;
     const char *dstFilename = nullptr;
-    FILE *dst_file;
+    FILE *dst_file = nullptr;
     int dst_bufsize;
-    struct SwsContext *sws_ctx;
+    struct SwsContext *sws_ctx = nullptr;
     int i, ret;
 
     dst_size = "640x480";

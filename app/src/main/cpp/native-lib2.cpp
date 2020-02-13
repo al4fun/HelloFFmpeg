@@ -36,16 +36,16 @@ Java_com_example_helloffmpeg_MainActivity_decodeVideo(JNIEnv *env, jobject thiz,
     __android_log_write(ANDROID_LOG_ERROR, TAG, filename);
     __android_log_write(ANDROID_LOG_ERROR, TAG, outfilename);
 
-    const AVCodec *avCodec;
-    AVCodecParserContext *avCodecParserContext;
+    const AVCodec *avCodec = nullptr;
+    AVCodecParserContext *avCodecParserContext = nullptr;
     AVCodecContext *avCodecContext = nullptr;
-    FILE *file;
-    AVFrame *avFrame;
+    FILE *file = nullptr;
+    AVFrame *avFrame = nullptr;
     uint8_t inbuf[INBUF_SIZE + AV_INPUT_BUFFER_PADDING_SIZE];
-    uint8_t *data;
+    uint8_t *data = nullptr;
     size_t data_size;
     int ret;
-    AVPacket *avPacket;
+    AVPacket *avPacket = nullptr;
 
     avPacket = av_packet_alloc();
     if (!avPacket)
@@ -215,12 +215,12 @@ Java_com_example_helloffmpeg_MainActivity_encodeVideo(JNIEnv *env, jobject thiz,
     const char *outfilename = env->GetStringUTFChars(dst_file_path, nullptr);
     __android_log_write(ANDROID_LOG_ERROR, TAG, outfilename);
 
-    const AVCodec *codec;
+    const AVCodec *codec = nullptr;
     AVCodecContext *avCodecContext = nullptr;
     int i, ret, x, y;
-    FILE *file;
-    AVFrame *frame;
-    AVPacket *pkt;
+    FILE *file = nullptr;
+    AVFrame *frame = nullptr;
+    AVPacket *pkt = nullptr;
     uint8_t endcode[] = {0, 0, 1, 0xb7};
 
     //codec = avcodec_find_encoder_by_name(codec_name);

@@ -42,11 +42,11 @@ Java_com_example_helloffmpeg_MainActivity_resampleAudio(JNIEnv *env, jobject thi
     int src_nb_samples = 1024;
     int dst_nb_samples, max_dst_nb_samples;
 
-    const char *dstFilename;
-    FILE *dst_file;
+    const char *dstFilename = nullptr;
+    FILE *dst_file = nullptr;
     int dst_bufsize;
-    const char *fmt;
-    struct SwrContext *swr_ctx;
+    const char *fmt = nullptr;
+    struct SwrContext *swr_ctx = nullptr;
     double t;
     int ret;
 
