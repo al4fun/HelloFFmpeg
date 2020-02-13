@@ -75,6 +75,14 @@ JNIEXPORT void JNICALL
 Java_com_example_helloffmpeg_MainActivity_extractAudio(JNIEnv *env, jobject thiz,
                                                        jstring src_path, jstring dst_path) {
     int ret;
+    AVFormatContext *in_fmt_ctx = nullptr;
+    int audio_index;
+    AVStream *in_stream;
+    AVCodecParameters *in_codecpar;
+    AVFormatContext *out_fmt_ctx;
+    AVOutputFormat *out_fmt;
+    AVStream *out_stream;
+    AVPacket pkt;
 
     const char *srcPath = env->GetStringUTFChars(src_path, nullptr);
     const char *dstPath = env->GetStringUTFChars(dst_path, nullptr);
@@ -82,7 +90,6 @@ Java_com_example_helloffmpeg_MainActivity_extractAudio(JNIEnv *env, jobject thiz
     __android_log_write(ANDROID_LOG_ERROR, TAG, dstPath);
 
     //in_fmt_ctx
-    AVFormatContext *in_fmt_ctx = nullptr;
     ret = avformat_open_input(&in_fmt_ctx, srcPath, nullptr, nullptr);
     if (ret < 0) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "avformat_open_input失败：%s",
@@ -91,7 +98,7 @@ Java_com_example_helloffmpeg_MainActivity_extractAudio(JNIEnv *env, jobject thiz
     }
 
     //audio_index
-    int audio_index = av_find_best_stream(in_fmt_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
+    audio_index = av_find_best_stream(in_fmt_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
     if (audio_index < 0) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "查找音频流失败：%s",
                             av_err2str(audio_index));
@@ -99,16 +106,16 @@ Java_com_example_helloffmpeg_MainActivity_extractAudio(JNIEnv *env, jobject thiz
     }
 
     //in_stream、in_codecpar
-    AVStream *in_stream = in_fmt_ctx->streams[audio_index];
-    AVCodecParameters *in_codecpar = in_stream->codecpar;
+    in_stream = in_fmt_ctx->streams[audio_index];
+    in_codecpar = in_stream->codecpar;
     if (in_codecpar->codec_type != AVMEDIA_TYPE_AUDIO) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "The Codec type is invalid!");
         goto end;
     }
 
     //out_fmt_ctx
-    AVFormatContext *out_fmt_ctx = avformat_alloc_context();
-    AVOutputFormat *out_fmt = av_guess_format(NULL, dstPath, NULL);
+    out_fmt_ctx = avformat_alloc_context();
+    out_fmt = av_guess_format(NULL, dstPath, NULL);
     out_fmt_ctx->oformat = out_fmt;
     if (!out_fmt) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Cloud not guess file format");
@@ -116,7 +123,7 @@ Java_com_example_helloffmpeg_MainActivity_extractAudio(JNIEnv *env, jobject thiz
     }
 
     //out_stream
-    AVStream *out_stream = avformat_new_stream(out_fmt_ctx, NULL);
+    out_stream = avformat_new_stream(out_fmt_ctx, NULL);
     if (!out_stream) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Failed to create out stream");
         goto end;
@@ -140,7 +147,6 @@ Java_com_example_helloffmpeg_MainActivity_extractAudio(JNIEnv *env, jobject thiz
     }
 
     //initialize packet
-    AVPacket pkt;
     av_init_packet(&pkt);
     pkt.data = nullptr;
     pkt.size = 0;
@@ -190,6 +196,14 @@ JNIEXPORT void JNICALL
 Java_com_example_helloffmpeg_MainActivity_extractVideo(JNIEnv *env, jobject thiz,
                                                        jstring src_path, jstring dst_path) {
     int ret;
+    AVFormatContext *in_fmt_ctx = nullptr;
+    int video_index;
+    AVStream *in_stream;
+    AVCodecParameters *in_codecpar;
+    AVFormatContext *out_fmt_ctx;
+    AVOutputFormat *out_fmt;
+    AVStream *out_stream;
+    AVPacket pkt;
 
     const char *srcPath = env->GetStringUTFChars(src_path, nullptr);
     const char *dstPath = env->GetStringUTFChars(dst_path, nullptr);
@@ -197,7 +211,6 @@ Java_com_example_helloffmpeg_MainActivity_extractVideo(JNIEnv *env, jobject thiz
     __android_log_write(ANDROID_LOG_ERROR, TAG, dstPath);
 
     //in_fmt_ctx
-    AVFormatContext *in_fmt_ctx = nullptr;
     ret = avformat_open_input(&in_fmt_ctx, srcPath, nullptr, nullptr);
     if (ret < 0) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "avformat_open_input失败：%s",
@@ -206,7 +219,7 @@ Java_com_example_helloffmpeg_MainActivity_extractVideo(JNIEnv *env, jobject thiz
     }
 
     //video_index
-    int video_index = av_find_best_stream(in_fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
+    video_index = av_find_best_stream(in_fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
     if (video_index < 0) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "查找视频流失败：%s",
                             av_err2str(video_index));
@@ -214,16 +227,16 @@ Java_com_example_helloffmpeg_MainActivity_extractVideo(JNIEnv *env, jobject thiz
     }
 
     //in_stream、in_codecpar
-    AVStream *in_stream = in_fmt_ctx->streams[video_index];
-    AVCodecParameters *in_codecpar = in_stream->codecpar;
+    in_stream = in_fmt_ctx->streams[video_index];
+    in_codecpar = in_stream->codecpar;
     if (in_codecpar->codec_type != AVMEDIA_TYPE_VIDEO) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "The Codec type is invalid!");
         goto end;
     }
 
     //out_fmt_ctx
-    AVFormatContext *out_fmt_ctx = avformat_alloc_context();
-    AVOutputFormat *out_fmt = av_guess_format(NULL, dstPath, NULL);
+    out_fmt_ctx = avformat_alloc_context();
+    out_fmt = av_guess_format(NULL, dstPath, NULL);
     out_fmt_ctx->oformat = out_fmt;
     if (!out_fmt) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Cloud not guess file format");
@@ -231,7 +244,7 @@ Java_com_example_helloffmpeg_MainActivity_extractVideo(JNIEnv *env, jobject thiz
     }
 
     //out_stream
-    AVStream *out_stream = avformat_new_stream(out_fmt_ctx, NULL);
+    out_stream = avformat_new_stream(out_fmt_ctx, NULL);
     if (!out_stream) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Failed to create out stream");
         goto end;
@@ -255,7 +268,6 @@ Java_com_example_helloffmpeg_MainActivity_extractVideo(JNIEnv *env, jobject thiz
     }
 
     //initialize packet
-    AVPacket pkt;
     av_init_packet(&pkt);
     pkt.data = nullptr;
     pkt.size = 0;
