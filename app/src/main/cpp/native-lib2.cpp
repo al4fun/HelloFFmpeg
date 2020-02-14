@@ -56,7 +56,7 @@ Java_com_example_helloffmpeg_MainActivity_decodeVideo(JNIEnv *env, jobject thiz,
     /* set end of buffer to 0 (this ensures that no overreading happens for damaged MPEG streams) */
     memset(inbuf + INBUF_SIZE, 0, AV_INPUT_BUFFER_PADDING_SIZE);
 
-    //找到h264的编解码器
+    //找到h264的解码器
     avCodec = avcodec_find_decoder(AV_CODEC_ID_H264);
     if (!avCodec) {
         __android_log_write(ANDROID_LOG_ERROR, TAG, "Codec not found\n");
@@ -173,7 +173,7 @@ static void decode(AVCodecContext *avCodecContext, AVFrame *avFrame, AVPacket *p
             /* the picture is allocated by the decoder. no need to
                free it */
             //拼接文件名
-            //C库函数:int snprintf(char *str, size_t size, const char *format, ...),设将可变参数(...)按照format格式化成字符串，
+            //C库函数:int snprintf(char *str, size_t size, const char *format, ...),将可变参数(...)按照format格式化成字符串，
             //并将字符串复制到str中，size为要写入的字符的最大数目，超过size会被截断。
             snprintf(buf, sizeof(buf), "%s-%d.yuv", filename, avCodecContext->frame_number);
             yuv_save(avFrame, buf);
